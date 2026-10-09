@@ -21,7 +21,14 @@ export interface HostContext {
   };
 }
 export interface HostTui { terminal: { rows: number }; requestRender(): void; }
-export interface HostTheme { fg(color: "accent" | "success" | "warning" | "error" | "dim" | "muted", text: string): string; }
+/** Subset of OMP 18.8.6 ThemeColor names used by the dashboard; all exist in every bundled theme. */
+export type HostColor = "accent" | "success" | "warning" | "error" | "dim" | "muted" | "thinkingLow" | "thinkingXhigh";
+/** OMP's Theme implements every method; bold/bg stay optional so minimal hosts and tests can omit them. */
+export interface HostTheme {
+  fg(color: HostColor, text: string): string;
+  bold?(text: string): string;
+  bg?(color: "selectedBg", text: string): string;
+}
 export interface HostComponent { render(width: number): string[]; handleInput(data: string): void; invalidate(): void; dispose(): void; }
 export interface HostAPI {
   on(name: string, handler: (event: Record<string, unknown>, ctx: HostContext) => void): void;

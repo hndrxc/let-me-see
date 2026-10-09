@@ -40,10 +40,14 @@ export function createAgentTreeExtension(options: TreeOptions = {}): (pi: HostAP
             disposed = true; unsubscribe(); dispose();
             if (timer !== undefined) { ctx.clearTimer(timer); timer = undefined; }
           };
-          // Coalesce event bursts; refresh elapsed time at most once a second.
+          // Coalesce event bursts; animate every tick or refresh at least once a second.
           timer = ctx.setInterval(() => {
             const now = Date.now();
-            if (dirty || now - lastClock >= 1000) { dirty = false; lastClock = now; tui.requestRender(); }
+            if (dirty || dashboard.isAnimating() || now - lastClock >= 1000) {
+              dirty = false;
+              lastClock = now;
+              tui.requestRender();
+            }
           }, 100);
           return dashboard;
         }, { overlay: true, overlayOptions: { width: "100%", maxHeight: "100%", anchor: "center", margin: 1 }, signal: controller.signal });

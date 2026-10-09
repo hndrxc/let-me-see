@@ -75,3 +75,78 @@ test("elapsed time freezes after a turn, unknown time stays explicit and Kitty k
   expect(normalizeKey("\x1b[113;1:3u")).toBe("");
   expect(normalizeKey("\x1b[57352u")).toBe("\x1b[A");
 });
+
+test("spinner and particle output differs 120ms apart while running and is identical when static", () => {
+  const storeRunning = new TreeStore("root-a");
+  storeRunning.ingest(frame("agent_observed", "Main", { kind: "main", name: "main", state: "running" }, 1000));
+  storeRunning.ingest(frame("agent_observed", "child-1", { parentId: "Main", name: "child-1", state: "running" }, 1000));
+
+  let clock = 1000;
+  const dashRunning = new Dashboard(storeRunning, () => 30, () => {}, () => {}, undefined, () => clock);
+  const r1 = dashRunning.render(120).join("\n");
+  clock += 120;
+  const r2 = dashRunning.render(120).join("\n");
+  expect(r1).not.toEqual(r2);
+
+  const storeStatic = new TreeStore("root-a");
+  storeStatic.ingest(frame("agent_observed", "Main", { kind: "main", name: "main", state: "completed" }, 1000));
+  storeStatic.ingest(frame("agent_observed", "child-1", { parentId: "Main", name: "child-1", state: "completed" }, 1000));
+
+  let clockStatic = 50000;
+  const dashStatic = new Dashboard(storeStatic, () => 30, () => {}, () => {}, undefined, () => clockStatic);
+  const s1 = dashStatic.render(120).join("\n");
+  clockStatic += 120;
+  const s2 = dashStatic.render(120).join("\n");
+  expect(s1).toEqual(s2);
+});
+
+test("isAnimating transitions from true to false after all nodes end and activity ages out", () => {
+  const store = new TreeStore("root-a");
+  store.ingest(frame("agent_observed", "Main", { kind: "main", name: "main", state: "running" }, 1000));
+  let clock = 1000;
+  const dashboard = new Dashboard(store, () => 20, () => {}, () => {}, undefined, () => clock);
+
+  expect(dashboard.isAnimating()).toBe(true);
+
+  store.ingest(frame("agent_finished", "Main", { state: "completed" }, 1000));
+  // At clock = 1000, recent activity timestamp is 1000 (< 2000ms old) and stateAt is 1000 (< 1000ms old)
+  expect(dashboard.isAnimating()).toBe(true);
+
+  // Advance clock past 2000ms
+  clock = 3500;
+  expect(dashboard.isAnimating()).toBe(false);
+});
+
+test("selected agent stays visible after scrolling deep into 100 children at 80x16 and 120x40", () => {
+  const store = fixture(100);
+  const d16 = new Dashboard(store, () => 16, () => {}, () => {});
+  d16.render(80);
+  for (let i = 0; i < 75; i++) d16.handleInput("j");
+  expect(d16.selectedId).toBe("agent-74");
+  const out16 = d16.render(80).join("\n");
+  expect(out16).toContain("74");
+
+  const d40 = new Dashboard(store, () => 40, () => {}, () => {});
+  d40.render(120);
+  for (let i = 0; i < 75; i++) d40.handleInput("j");
+  expect(d40.selectedId).toBe("agent-74");
+  const out40 = d40.render(120).join("\n");
+  expect(out40).toContain("74");
+});
+
+test("details toggle shows and hides Recent activity", () => {
+  const store = fixture(5);
+  store.ingest(frame("task_updated", "Main", { task: "initial task" }, 1000));
+  const dashboard = new Dashboard(store, () => 24, () => {}, () => {});
+
+  // Starts hidden
+  expect(dashboard.render(120).join("\n")).not.toContain("Recent activity");
+
+  // Toggle on with 'd'
+  dashboard.handleInput("d");
+  expect(dashboard.render(120).join("\n")).toContain("Recent activity");
+
+  // Toggle off with 'd'
+  dashboard.handleInput("d");
+  expect(dashboard.render(120).join("\n")).not.toContain("Recent activity");
+});

@@ -1,6 +1,8 @@
 # OMP Let Me See
 
-A native TypeScript extension implementing [the design](./omp-agent-tree-design.md). Open `/agent-tree` to see the main agent, subagents, their runtime parent links, observed models, state, concurrent tools, elapsed time, task summaries, and bounded activity history. Inference continues while the dashboard is open. Closing it returns to chat.
+A native TypeScript extension implementing [the design](./omp-agent-tree-design.md). Open `/agent-tree` to see the main agent, subagents, and consultation nodes in a live boxed flow diagram with concurrent tool meters, animations, a session log, and a status bar. Inference continues while the dashboard is open. Closing it returns to chat.
+
+Tier colors come from the active OMP theme: main agent `accent`, subagents `thinkingLow`, consultations `thinkingXhigh`. Tiers are structural; no agent role or model family receives a special color. While anything runs, state glyphs spin and particles flow along delegation, return, and consultation connectors; new log entries and changed node borders flash briefly. Fork-layer, effort, context-size, and token panels are not drawn: no telemetry exists for them.
 
 The compatibility target is **Oh My Pi 18.8.6**, with Bun 1.3 or later. The extension has no runtime dependencies, network service, browser, or build step. It adds no tools and returns no event overrides.
 
@@ -28,10 +30,10 @@ Navigation:
 | Space, ←/h, →/l | Toggle, collapse, expand a subtree |
 | c | Collapse / expand completed subtrees |
 | Tab | Move focus between tree and details |
-| Enter or d | Hide / show details |
+| Enter or d | Toggle details pane (starts hidden) |
 | q, Escape, Ctrl+C | Close dashboard; inference continues |
 
-At 100 columns or more, details appear beside the tree. Smaller terminals stack the panes. Large trees scroll, selection follows runtime IDs, and missing or cyclic parent relationships remain visibly unresolved. Completed nodes remain until the configured retention limit is reached; ancestors needed by retained descendants stay visible.
+Details replace the session log box with ID, parent, session, observed model, state, elapsed time, tools, wrapped task, and recent activity; Tab focuses them for scrolling. At 100 columns or more, consultations appear in a left panel with an activity timeline and a dashed connector to their parent; narrower terminals render them as a grid. Large trees scroll so the selected node stays visible, and missing or cyclic parent relationships remain visibly unresolved. Completed nodes remain until the configured retention limit is reached; ancestors needed by retained descendants stay visible.
 
 Models appear only after an actual provider request or assistant message is observed. Configured model selectors are never presented as an observed model. A normal agent loop ending sets the node idle; task lifecycle completion sets it completed, failed, or cancelled. A later loop can reuse that node. Missing fields display as unknown.
 
@@ -51,7 +53,7 @@ export default createAgentTreeExtension({
 });
 ```
 
-State colors accept `accent`, `success`, `warning`, `error`, `dim`, or `muted`, using the active OMP theme. No agent role or model family is assigned a special color.
+State colors accept `accent`, `success`, `warning`, `error`, `dim`, or `muted`, using the active OMP theme.
 
 Custom routers and orchestrators can publish explicit telemetry with `publishTelemetry` on `agent-tree:telemetry:v1`. The v1 contract is exported from [src/events.ts](./src/events.ts). Each event includes `schemaVersion`, a unique `eventId`, timestamp in Unix milliseconds, source, `rootSessionId`, producer `sessionId`, runtime `agentId`, type, and payload. Root IDs must match the main session's `ctx.sessionManager.getSessionId()`. Agent IDs must be unique within that root; use a producer namespace for custom nodes. Tool IDs correlate concurrent start/end frames.
 
@@ -72,7 +74,8 @@ npm ci
 npm run typecheck
 npm test
 npm run check:host  # requires installed OMP 18.8.6; never calls a model
-npm run demo -- 120 # deterministic tree structure with illustrative model labels
+npm run demo -- 120    # deterministic frame with illustrative model labels
+npm run demo -- --live # animated 20s timeline in terminal alternate screen
 npm pack
 ```
 
